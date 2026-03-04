@@ -1,0 +1,22 @@
+[Unit]
+Description=disclaude
+After=network.target
+
+[Service]
+Type=simple
+User=disclaude
+WorkingDirectory=/home/disclaude
+ExecStart=/home/disclaude/venv/bin/python /home/disclaude/bot.py
+Restart=always
+RestartSec=10
+Environment=PATH=/home/disclaude/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# --- サンドボックス ---
+ProtectSystem=strict
+ReadWritePaths=/home/disclaude
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectHome=tmpfs
+
+[Install]
+WantedBy=multi-user.target

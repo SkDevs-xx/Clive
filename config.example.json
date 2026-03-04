@@ -1,0 +1,20 @@
+{
+  "allowed_user_ids": [
+    "YOUR_DISCORD_USER_ID"
+  ],
+  "model": "sonnet",
+  "thinking": false,
+  "skip_permissions": true,
+  "heartbeat_enabled": false,
+  "heartbeat_channel_id": "YOUR_HEARTBEAT_CHANNEL_ID",
+  "heartbeat_interval_minutes": 60,
+  "memory": {
+    "threshold_bytes": 1048576
+  },
+  "no_mention_channels": [
+    "YOUR_CHANNEL_ID"
+  ],
+  "browser_enabled": false,
+  "browser_cdp_port": 9222,
+  "novnc_bind_address": "localhost"
+}
