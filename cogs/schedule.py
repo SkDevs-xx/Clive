@@ -580,7 +580,16 @@ class ScheduleCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
         for s in schedules:
-            last = s.get("last_run") or "未実行"
+            last_raw = s.get("last_run")
+            if last_raw:
+                try:
+                    from datetime import datetime as _dt
+                    from zoneinfo import ZoneInfo
+                    last = _dt.fromisoformat(last_raw).astimezone(ZoneInfo("Asia/Tokyo")).strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    last = last_raw
+            else:
+                last = "未実行"
             is_wrapup = s.get("type") == "wrapup"
             prompt_line = "（ラップアップ自動実行）" if is_wrapup else s["prompt"][:80]
             model_label = s.get("model", "sonnet")
