@@ -359,7 +359,7 @@ class HeartbeatCog(commands.Cog):
 
         # Wrapup は ON/OFF 問わず常にチェック
         if wrapup_needed:
-            await self._trigger_wrapup(notify_channel_id)
+            await self._trigger_wrapup(notify_channel_id, state.get("wrapup_time", "05:00"))
             logger.info("Heartbeat: wrapup triggered")
             return
 
@@ -390,7 +390,7 @@ class HeartbeatCog(commands.Cog):
 
         # Claude が WRAPUP_NEEDED を返した場合（Python 事前判定は上で処理済み）
         if "WRAPUP_NEEDED" in response:
-            await self._trigger_wrapup(notify_channel_id)
+            await self._trigger_wrapup(notify_channel_id, state.get("wrapup_time", "05:00"))
             logger.info("Heartbeat: wrapup triggered by Claude")
             return
 
@@ -405,7 +405,7 @@ class HeartbeatCog(commands.Cog):
 
     # ── Wrapup トリガー ─────────────────────────
 
-    async def _trigger_wrapup(self, notify_channel_id: str | None):
+    async def _trigger_wrapup(self, notify_channel_id: str | None, wrapup_time: str = "05:00"):
         """全ギルドに対して Wrap-up を実行し、結果を通知チャンネルに送信する。"""
         from core.wrapup import run_wrapup
 
@@ -416,7 +416,7 @@ class HeartbeatCog(commands.Cog):
                 continue
             channel_id = text_channels[0].id
             try:
-                summary = await run_wrapup(self.bot, channel_id)
+                summary = await run_wrapup(self.bot, channel_id, wrapup_time=wrapup_time)
                 if summary:
                     any_success = True
                     if notify_channel_id:

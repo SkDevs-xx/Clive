@@ -29,27 +29,36 @@ async def run_wrapup(
     bot, channel_id: int,
     date_from: str | None = None,
     date_to: str | None = None,
+    wrapup_time: str = "00:00",
 ) -> str | None:
     """
-    Discord API でサーバー全チャンネルのメッセージを取得し、Claude で要約する。
-    date_from / date_to: "YYYY-MM-DD" 形式。両方 None なら昨日1日分。
-    date_to 省略時は今日まで。
+    Discord API でサーバー全テキストチャンネルのメッセージを取得し、Claude で要約する。
+    date_from / date_to: "YYYY-MM-DD" 形式。両方 None なら前回 wrapup_time から今回 wrapup_time まで。
+    wrapup_time: "HH:MM" 形式。集計の区切り時刻。
     """
     from core.claude import run_claude
 
+    # ── wrapup_time のパース ──
+    wt_h, wt_m = (int(x) for x in wrapup_time.split(":"))
+
     # ── 日付範囲の決定 ──
-    today = datetime.now(JST).date()
+    now = datetime.now(JST)
     if date_from is None and date_to is None:
-        yesterday = today - timedelta(days=1)
-        d_from = yesterday
-        d_to = yesterday
+        # 前日の wrapup_time 〜 本日の wrapup_time
+        end_dt = now.replace(hour=wt_h, minute=wt_m, second=0, microsecond=0)
+        start_dt = end_dt - timedelta(days=1)
+        d_from = start_dt.date()
+        d_to = end_dt.date()
     else:
+        today = now.date()
         d_from = datetime.strptime(date_from, "%Y-%m-%d").date() if date_from else today - timedelta(days=1)
         d_to = datetime.strptime(date_to, "%Y-%m-%d").date() if date_to else today
+        start_dt = datetime(d_from.year, d_from.month, d_from.day, wt_h, wt_m, tzinfo=JST)
+        end_dt = datetime(d_to.year, d_to.month, d_to.day, wt_h, wt_m, tzinfo=JST)
 
-    # Discord API 用: JST 00:00 を UTC に変換
-    after_dt = datetime(d_from.year, d_from.month, d_from.day, tzinfo=JST) - timedelta(seconds=1)
-    before_dt = datetime(d_to.year, d_to.month, d_to.day, tzinfo=JST) + timedelta(days=1)
+    # Discord API 用（after は排他なので1秒引く）
+    after_dt = start_dt - timedelta(seconds=1)
+    before_dt = end_dt
 
     # ── guild 特定 ──
     ch = bot.get_channel(channel_id)
@@ -59,27 +68,19 @@ async def run_wrapup(
     guild = ch.guild
     guild_id = guild.id
 
-    # ── 全テキストチャンネル + スレッドからメッセージを収集 ──
+    # ── 全テキストチャンネルからメッセージを収集 ──
     parts: dict[str, list[str]] = {}  # channel_name -> lines
     total_chars = 0
     total_msgs = 0
     truncated = False
 
-    # テキストチャンネルとアクティブスレッドを統合
-    channels: list[discord.abc.Messageable] = list(guild.text_channels)
-    channels.extend(guild.threads)
-
-    for text_ch in channels:
+    for text_ch in guild.text_channels:
         if truncated:
             break
-        # スレッドの表示名: "親チャンネル > スレッド名"
-        if isinstance(text_ch, discord.Thread) and text_ch.parent:
-            ch_label = f"{text_ch.parent.name} > {text_ch.name}"
-        else:
-            ch_label = text_ch.name
+        ch_label = text_ch.name
         try:
             async for msg in text_ch.history(after=after_dt, before=before_dt, oldest_first=True):
-                if msg.author.bot or not msg.content:
+                if not msg.content:
                     continue
                 ts = msg.created_at.astimezone(JST).strftime("%Y-%m-%d %H:%M")
                 line = f"[{ts}] {msg.author.display_name}: {msg.content}"
@@ -126,9 +127,9 @@ async def run_wrapup(
     )
 
     async with bot.get_channel_lock(channel_id):
-        summary, timed_out = await run_claude(prompt, "fast")
+        summary, timed_out = await run_claude(prompt)
 
-    if timed_out or not summary:
+    if timed_out or not summary or summary.startswith("エラーが発生しました"):
         return None
 
     # ── 新パス: memory/wrapup/{guild_id}/YYYY-MM-DD.md に保存 ──
