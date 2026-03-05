@@ -19,6 +19,34 @@ from core.config import (
     set_no_mention,
 )
 
+
+def _status_blocks(model: str, thinking: bool, running: bool, reply_in_thread: bool) -> list[dict]:
+    thinking_label = "ON" if thinking else "OFF"
+    thread_label = "ON" if reply_in_thread else "OFF"
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"*ステータス*\n"
+                    f"- モデル: *{model}*\n"
+                    f"- Thinking: *{thinking_label}*\n"
+                    f"- Claude 実行中: *{'はい' if running else 'いいえ'}*\n"
+                    f"- スレッド返信: *{thread_label}*"
+                ),
+            },
+        },
+        {
+            "type": "actions",
+            "block_id": "thread_reply_block",
+            "elements": [
+                _btn("thread_reply_on", "スレッド返信 ON", primary=reply_in_thread),
+                _btn("thread_reply_off", "スレッド返信 OFF", primary=not reply_in_thread),
+            ],
+        },
+    ]
+
 if TYPE_CHECKING:
     from platforms.slack.bot import SlackBot
 
@@ -122,15 +150,40 @@ def register(bot: "SlackBot"):
     async def cmd_status(ack, respond):
         await ack()
         model, thinking = get_model_config()
-        thinking_label = "ON" if thinking else "OFF"
         running = bool(bot.running_tasks)
-        text = (
-            f"*ステータス*\n"
-            f"- モデル: *{model}*\n"
-            f"- Thinking: *{thinking_label}*\n"
-            f"- Claude 実行中: *{'はい' if running else 'いいえ'}*"
+        cfg = load_platform_config()
+        reply_in_thread = cfg.get("reply_in_thread", True)
+        await respond(
+            blocks=_status_blocks(model, thinking, running, reply_in_thread),
+            text="ステータス",
+            response_type="ephemeral",
         )
-        await respond(text=text, response_type="ephemeral")
+
+    @app.action("thread_reply_on")
+    async def action_thread_reply_on(ack, respond):
+        await ack()
+        cfg = load_platform_config()
+        cfg["reply_in_thread"] = True
+        save_platform_config(cfg)
+        model, thinking = get_model_config()
+        await respond(
+            blocks=_status_blocks(model, thinking, bool(bot.running_tasks), True),
+            text="ステータス",
+            replace_original=True,
+        )
+
+    @app.action("thread_reply_off")
+    async def action_thread_reply_off(ack, respond):
+        await ack()
+        cfg = load_platform_config()
+        cfg["reply_in_thread"] = False
+        save_platform_config(cfg)
+        model, thinking = get_model_config()
+        await respond(
+            blocks=_status_blocks(model, thinking, bool(bot.running_tasks), False),
+            text="ステータス",
+            replace_original=True,
+        )
 
     # ── /cancel ─────────────────────────────────────────
     @app.command("/cancel-ai")

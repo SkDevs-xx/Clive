@@ -23,13 +23,16 @@ logger = logging.getLogger("discord_bot")
 
 def _setup_logging():
     """ロガーを設定する。"""
-    logger.setLevel(logging.INFO)
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
     fh = RotatingFileHandler(LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8")
-    fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    fh.setFormatter(fmt)
     sh = logging.StreamHandler()
-    sh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-    logger.addHandler(fh)
-    logger.addHandler(sh)
+    sh.setFormatter(fmt)
+    for name in ("discord_bot", "slack_bot"):
+        lg = logging.getLogger(name)
+        lg.setLevel(logging.INFO)
+        lg.addHandler(fh)
+        lg.addHandler(sh)
 
 
 def _init_workspace_cmd(platform: str, from_platform: str):

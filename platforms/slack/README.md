@@ -100,6 +100,8 @@
     "event_subscriptions": {
       "bot_events": [
         "app_mention",
+        "message.channels",
+        "message.groups",
         "message.im"
       ]
     },
@@ -207,11 +209,11 @@ INFO  Bolt app is running in Socket Mode!
 
 | コマンド | 説明 |
 |---|---|
-| `/model-ai` | AI モデルを切り替える（Sonnet / Opus / Haiku） |
-| `/status-ai` | 現在の設定と実行状況を確認する |
+| `/model-ai` | AI モデルを切り替える（Sonnet / Opus / Haiku）・Thinking ON/OFF |
+| `/status-ai` | 現在の設定と実行状況を確認する・スレッド返信 ON/OFF を切り替える |
 | `/cancel-ai` | このチャンネルで実行中のタスクをキャンセルする |
-| `/mention-ai` | @メンション不要モードのON/OFFを切り替える |
-| `/heartbeat-ai` | 定期レポートの設定と手動実行 |
+| `/mention-ai` | @メンション不要モードの ON/OFF を切り替える |
+| `/heartbeat-ai` | 定期レポートの設定・手動実行・Heartbeat 専用 Thinking ON/OFF |
 | `/review-ai` | 調査済みトピックのフィードバックレビュー |
 | `/schedule-ai add` | 定期タスクを追加する |
 | `/schedule-ai list` | 登録済みの定期タスクを一覧表示する |
@@ -224,7 +226,9 @@ INFO  Bolt app is running in Socket Mode!
 
 - **チャンネル**: `@AI Bot` とメンションしてメッセージを送る
 - **ダイレクトメッセージ**: メンション不要でそのまま話しかける
+- **メンション不要チャンネル**: `/mention-ai` で設定すると @メンションなしで全メッセージに反応する
 - **ファイル添付**: 画像やテキストファイルを添付してメッセージを送れる
+- **スレッド返信**: デフォルトでスレッドに返信。`/status-ai` でチャンネル直接投稿に変更可能
 
 ---
 
@@ -245,6 +249,11 @@ INFO  Bolt app is running in Socket Mode!
 - ボットをチャンネルに招待しているか確認してください（`/invite @AI Bot`）
 - `allowed_user_ids` に自分のメンバーIDが入っているか確認してください
 - ターミナルのログにエラーが出ていないか確認してください
+
+### メンション不要設定にしたのに反応しない
+
+マニフェストの `bot_events` に `message.channels`（パブリックチャンネル）または `message.groups`（プライベートチャンネル）が含まれているか確認してください。
+追加後は **「Install App」→「Reinstall to Workspace」** でアプリを再インストールしてください。
 
 ### 「Socket Mode is not enabled」と出る
 

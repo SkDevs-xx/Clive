@@ -1,8 +1,8 @@
 # disclaude
 
-Discord × Claude Code CLI で動く自律型 AI ボット。
+Discord / Slack × Claude Code CLI で動く自律型 AI ボット。
 
-メンションするだけで Claude と対話でき、スケジュール実行・チャンネル要約・Heartbeat 自律巡回・ブラウザ操作まで、Claude の能力を Discord 上でフルに活用できる。マルチプラットフォーム対応設計により、将来的に Slack や Notion への展開も可能。
+メンションするだけで Claude と対話でき、スケジュール実行・チャンネル要約・Heartbeat 自律巡回・ブラウザ操作まで、Claude の能力を Discord / Slack 上でフルに活用できる。`config.json` の `enabled` フラグで Discord と Slack を同時起動することも可能。
 
 ## できること
 
@@ -23,7 +23,8 @@ Discord × Claude Code CLI で動く自律型 AI ボット。
 - **Git** -- `git --version` で確認。なければ `sudo apt install git`
 - **Python 3.12 以上** -- `python3 --version` で確認
 - **Claude Code CLI** -- セットアップ手順内でインストールする
-- **Discord Bot Token** -- [Discord Developer Portal](https://discord.com/developers/applications) で Bot を作成して取得
+- **Discord Bot Token**（Discord を使う場合） -- [Discord Developer Portal](https://discord.com/developers/applications) で Bot を作成して取得
+- **Slack Bot Token / App Token**（Slack を使う場合） -- [api.slack.com/apps](https://api.slack.com/apps) で App を作成して取得
 
 ## セットアップ
 
@@ -76,23 +77,28 @@ claude
 
 > `claude` を実行するとブラウザが開く。VPS の場合は表示される URL を手元の PC で開く。
 
-### 4. Discord Bot Token の設定
+### 4. トークンの設定
 
-`.env` を編集して取得した Bot Token を貼り付ける:
+`.env` を編集して取得したトークンを貼り付ける:
 
 ```bash
 vi .env
 ```
 
 ```
-DISCORD_BOT_TOKEN=ここにあなたのBotTokenを貼る
+# Discord Bot
+DISCORD_BOT_TOKEN=ここにあなたのDiscordBotTokenを貼る
+
+# Slack Bot（Slack を使う場合）
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...
 ```
 
 ### 5. 設定ファイルの編集
 
 #### config.json
 
-`config.json` を編集する。最低限 `discord.allowed_user_ids` だけ設定すれば動く:
+`config.json` を編集する。使用するプラットフォームの `enabled` を `true` にして `allowed_user_ids` を設定すれば動く:
 
 ```json
 {
@@ -109,9 +115,25 @@ DISCORD_BOT_TOKEN=ここにあなたのBotTokenを貼る
     "heartbeat_channel_id": "",
     "heartbeat_interval_minutes": 60,
     "no_mention_channels": []
+  },
+  "slack": {
+    "enabled": false,
+    "model": "sonnet",
+    "thinking": false,
+    "skip_permissions": true,
+    "browser_enabled": false,
+    "browser_cdp_port": 9221,
+    "allowed_user_ids": ["あなたのSlackユーザーID"],
+    "heartbeat_enabled": false,
+    "heartbeat_channel_id": "",
+    "heartbeat_interval_minutes": 60,
+    "no_mention_channels": [],
+    "reply_in_thread": true
   }
 }
 ```
+
+**Discord 共通設定:**
 
 | キー | 説明 | デフォルト |
 |------|------|-----------|
@@ -128,7 +150,19 @@ DISCORD_BOT_TOKEN=ここにあなたのBotTokenを貼る
 | `discord.no_mention_channels` | メンション不要で反応するチャンネル ID（配列） | `[]` |
 | `novnc_bind_address` | noVNC のバインド先 IP（後述） | `localhost` |
 
+**Slack 固有設定:**
+
+| キー | 説明 | デフォルト |
+|------|------|-----------|
+| `slack.enabled` | Slack Bot を起動するか | `false` |
+| `slack.allowed_user_ids` | ボットに話しかけられるユーザーの Slack ユーザー ID（配列） | なし（必須） |
+| `slack.no_mention_channels` | メンション不要で反応するチャンネル ID（配列） | `[]` |
+| `slack.reply_in_thread` | メッセージをスレッドで返信するか（`false` でチャンネルに直接投稿） | `true` |
+| `slack.heartbeat_thinking` | Heartbeat 専用の Thinking モード | `false` |
+
 > Discord ユーザー ID の調べ方: Discord の設定 → 詳細設定 → 開発者モードを ON → 自分のアイコンを右クリック → 「ユーザー ID をコピー」
+
+> Slack ユーザー ID の調べ方: Slack でプロフィールを開く → 「その他」→ 「メンバー ID をコピー」（`U` から始まる文字列）
 
 #### .mcp.json の編集
 
@@ -364,43 +398,42 @@ ssh -L 6080:localhost:6080 disclaude@your-server
 
 ## コマンド一覧
 
-> Discord プラットフォーム限定のコマンドです。
->> SlackやNotion用のコマンドは順次対応予定。
+Discord と Slack で同等のコマンドが使えます。Discord はプレフィックスなし（`/model`）、Slack は `-ai` サフィックス付き（`/model-ai`）です。
 
 ### 基本操作
 
-| コマンド | 説明 |
-|----------|------|
-| `@bot メッセージ` | Claude と会話（画像・PDF の添付も可） |
-| `/model` | モデル（Sonnet / Opus / Haiku）と Thinking ON/OFF を設定 |
-| `/status` | 現在のモデル・Thinking・実行中タスクの確認 |
-| `/cancel` | 現在のチャンネルで実行中の Claude プロセスを中止 |
-| `/mention` | このチャンネルでのメンション要否を設定（OFF にするとメンションなしで反応） |
+| Discord | Slack | 説明 |
+|---------|-------|------|
+| `@bot メッセージ` | `@bot メッセージ` | Claude と会話（画像・PDF の添付も可） |
+| `/model` | `/model-ai` | モデル（Sonnet / Opus / Haiku）と Thinking ON/OFF を設定 |
+| `/status` | `/status-ai` | 現在のモデル・Thinking・実行中タスクの確認（Slack はスレッド返信 ON/OFF も設定可） |
+| `/cancel` | `/cancel-ai` | 現在のチャンネルで実行中の Claude プロセスを中止 |
+| `/mention` | `/mention-ai` | このチャンネルでのメンション要否を設定（OFF にするとメンションなしで反応） |
 
 ### スケジュール
 
-| コマンド | 説明 |
-|----------|------|
-| `/schedule add` | 定期実行タスクの追加（UI フォーム） |
-| `/schedule list` | 登録済みスケジュールの一覧・編集・一時停止・削除 |
+| Discord | Slack | 説明 |
+|---------|-------|------|
+| `/schedule add` | `/schedule-ai add` | 定期実行タスクの追加（UI フォーム） |
+| `/schedule list` | `/schedule-ai list` | 登録済みスケジュールの一覧・編集・一時停止・削除 |
 
 ### 分析
 
-| コマンド | 説明 |
-|----------|------|
-| `/summarize [prompt]` | チャンネルの会話を Claude に質問・要約（カスタムプロンプト対応） |
+| Discord | Slack | 説明 |
+|---------|-------|------|
+| `/summarize [prompt]` | `/summarize-ai [prompt]` | チャンネルの会話を Claude に質問・要約（カスタムプロンプト対応） |
 
 ### Heartbeat
 
-| コマンド | 説明 |
-|----------|------|
-| `/heartbeat` | Heartbeat のステータス表示・設定変更・手動実行 |
+| Discord | Slack | 説明 |
+|---------|-------|------|
+| `/heartbeat` | `/heartbeat-ai` | Heartbeat のステータス表示・設定変更・手動実行（Slack は Heartbeat 専用 Thinking モードも設定可） |
 
 ### レビュー
 
-| コマンド | 説明 |
-|----------|------|
-| `/review` | 調査済みトピックのレビュー・フィードバック |
+| Discord | Slack | 説明 |
+|---------|-------|------|
+| `/review` | `/review-ai` | 調査済みトピックのレビュー・フィードバック |
 
 ## 仕組み
 
@@ -440,18 +473,30 @@ disclaude/
 │
 ├── platforms/                       # プラットフォーム固有
 │   ├── base.py                      # PlatformAdapter ABC + PlatformContext
-│   └── discord/
-│       ├── __init__.py              # DISCORD_FORMAT_HINT 定数
-│       ├── bot.py                   # ClaudeBot 本体
-│       ├── embeds.py                # Discord Embed 生成
-│       ├── utils.py                 # get_guild_channels, make_discord_collector
+│   ├── discord/
+│   │   ├── __init__.py              # DISCORD_FORMAT_HINT 定数
+│   │   ├── bot.py                   # ClaudeBot 本体
+│   │   ├── embeds.py                # Discord Embed 生成
+│   │   ├── utils.py                 # get_guild_channels, make_discord_collector
+│   │   ├── cogs/
+│   │   │   ├── utility.py           # /model, /status, /cancel, /mention
+│   │   │   ├── schedule.py          # スケジュール管理
+│   │   │   ├── summarize.py         # チャンネル要約
+│   │   │   ├── heartbeat.py         # 自律巡回エージェント
+│   │   │   └── review.py            # 調査トピックレビュー
+│   │   └── workspace/               # Discord 専用ワークスペース（構成は Slack と同じ）
+│   └── slack/
+│       ├── __init__.py              # SLACK_FORMAT_HINT 定数
+│       ├── bot.py                   # SlackBot 本体（Bolt + Socket Mode）
+│       ├── utils.py                 # get_workspace_channels, make_slack_collector
 │       ├── cogs/
-│       │   ├── utility.py           # /model, /status, /cancel, /mention
-│       │   ├── schedule.py          # スケジュール管理
-│       │   ├── summarize.py         # チャンネル要約
-│       │   ├── heartbeat.py         # 自律巡回エージェント
-│       │   └── review.py            # 調査トピックレビュー
-│       └── workspace/               # Discord 専用ワークスペース
+│       │   ├── message.py           # app_mention + DM + メンション不要チャンネル
+│       │   ├── commands.py          # /model-ai, /status-ai, /cancel-ai, /mention-ai
+│       │   ├── schedule.py          # /schedule-ai
+│       │   ├── summarize.py         # /summarize-ai
+│       │   ├── heartbeat.py         # /heartbeat-ai（Heartbeat 専用 Thinking 設定付き）
+│       │   └── review.py            # /review-ai
+│       └── workspace/               # Slack 専用ワークスペース
 │           ├── SOUL.md              # AI の人格・価値観
 │           ├── USER.md              # ユーザー情報
 │           ├── CURIOSITY.md         # 未調査キュー
@@ -496,6 +541,53 @@ deactive
 ```
 
 コピー後に `platforms/slack/workspace/SOUL.md` を編集してプラットフォームに合った人格に調整する。
+
+### Slack App の設定
+
+[api.slack.com/apps](https://api.slack.com/apps) で App を作成・設定する。
+
+#### 必要な OAuth Scopes（Bot Token Scopes）
+
+| Scope | 用途 |
+|-------|------|
+| `app_mentions:read` | @メンション受信 |
+| `chat:write` | メッセージ送信 |
+| `reactions:write` | リアクション追加（処理中表示） |
+| `im:history` | DM 受信 |
+| `channels:history` | チャンネルメッセージ受信・要約 |
+| `channels:read` | チャンネル一覧取得 |
+| `groups:history` | プライベートチャンネル受信（使う場合） |
+| `files:read` | ファイル添付読み取り |
+
+#### Event Subscriptions（Subscribe to bot events）
+
+| Event | 用途 |
+|-------|------|
+| `app_mention` | @メンション |
+| `message.im` | DM |
+| `message.channels` | メンション不要チャンネルでの全メッセージ受信 |
+| `message.groups` | プライベートチャンネル（使う場合） |
+
+> `message.channels` を追加しないとメンション不要設定が動作しません。
+
+#### Slash Commands の登録
+
+| コマンド | 説明 |
+|----------|------|
+| `/model-ai` | モデル設定 |
+| `/status-ai` | ステータス確認 |
+| `/cancel-ai` | タスクキャンセル |
+| `/mention-ai` | メンション設定 |
+| `/heartbeat-ai` | Heartbeat 設定 |
+| `/review-ai` | レビュー |
+| `/schedule-ai` | スケジュール管理 |
+| `/summarize-ai` | チャンネル要約 |
+
+#### Socket Mode の有効化
+
+「Socket Mode」→ Enable Socket Mode を ON → App-Level Token（`xapp-` から始まる）を発行して `.env` の `SLACK_APP_TOKEN` に設定する。
+
+設定完了後、**Settings → Install App → Reinstall to Workspace** でアプリを再インストールする。
 
 ## スキルシステム
 

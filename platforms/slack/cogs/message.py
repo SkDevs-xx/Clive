@@ -19,6 +19,7 @@ from core.config import (
     save_channel_session,
     save_channel_name,
     get_model_config,
+    get_no_mention_channels,
 )
 from core.claude import run_claude
 from core.message import split_message
@@ -126,8 +127,9 @@ async def handle_claude_message(
 
     full_prompt = user_text + injected_text
 
-    # 返信先スレッドを決める（スレッド内なら同スレッド、そうでなければ新規スレッド）
-    reply_ts = thread_ts if thread_ts else None
+    # 返信先スレッドを決める
+    reply_in_thread = platform_cfg.get("reply_in_thread", True)
+    reply_ts = (thread_ts if thread_ts else None) if reply_in_thread else None
 
     # 処理中リアクション
     try:
@@ -267,27 +269,35 @@ def register(bot: "SlackBot"):
 
     @app.event("message")
     async def on_direct_message(event, say, client):
-        # DM のみ処理（チャンネルメッセージは app_mention で処理）
-        if event.get("channel_type") != "im":
-            return
-        if event.get("subtype"):
+        subtype = event.get("subtype")
+        if subtype:
             return
 
+        channel_type = event.get("channel_type")
         channel_id = event.get("channel", "")
+        no_mention_channels = get_no_mention_channels()
+
+        # DM またはメンション不要チャンネルのみ処理
+        is_dm = channel_type == "im"
+        is_no_mention = channel_id in no_mention_channels
+        logger.info("[message] ch=%s type=%s is_dm=%s is_no_mention=%s no_mention_set=%s",
+                    channel_id, channel_type, is_dm, is_no_mention, no_mention_channels)
+        if not is_dm and not is_no_mention:
+            return
+
         user_id = event.get("user", "")
         text = event.get("text", "")
         thread_ts = event.get("thread_ts")
         message_ts = event.get("ts", "")
         files = event.get("files", [])
 
-        # DM は常に処理する（no_mention 設定不要）
-
         reply_ts = thread_ts or message_ts
+        channel_name = "DM" if is_dm else (event.get("channel_name") or channel_id)
 
         await handle_claude_message(
             bot=bot,
             channel_id=channel_id,
-            channel_name="DM",
+            channel_name=channel_name,
             user_id=user_id,
             text=text,
             thread_ts=reply_ts,
