@@ -154,7 +154,7 @@ DISCORD_BOT_TOKEN=ここにあなたのBotTokenを貼る
 
 ```bash
 source venv/bin/activate
-python main.py
+python3 main.py
 ```
 
 Discord でボットにメンションして返答が来れば OK。`Ctrl+C` で停止し、`exit` で root に戻る。
@@ -243,7 +243,7 @@ Claude に X への投稿や Gmail の確認など、**ログイン済みの Web
 4. 開いた Chrome で X や Gmail にログインする（初回のみ）
 5. ログイン後、Chrome はそのまま裏で動き続ける
 
-> Windows の場合、systemd は使えないので `python main.py` で直接実行するか、タスクスケジューラで自動起動を設定する。
+> Windows の場合、systemd は使えないので `python3 main.py` で直接実行するか、タスクスケジューラで自動起動を設定する。
 
 > Linux デスクトップの場合、日本語フォントがない環境では `sudo apt install fonts-noto-cjk` が必要。
 
@@ -490,7 +490,9 @@ disclaude/
 新しいプラットフォーム用ワークスペースを初期化:
 
 ```bash
-python main.py --init-workspace slack --from discord
+source venv/bin/activate
+python3 main.py --init-workspace slack --from discord
+deactive
 ```
 
 コピー後に `platforms/slack/workspace/SOUL.md` を編集してプラットフォームに合った人格に調整する。
