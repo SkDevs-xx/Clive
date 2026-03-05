@@ -135,8 +135,15 @@ class ClaudeBot(commands.Bot):
                 # 後方互換: 旧 "mode" キーを model+thinking に変換
                 sched_model = s.get("model", "sonnet")
                 sched_thinking = s.get("thinking", s.get("mode") == "planning")
+                discord_format_hint = (
+                    "\n\n【出力形式の注意】Discord に直接表示するため、以下のルールに従ってください：\n"
+                    "- 見出しは # / ## / ### を使用する\n"
+                    "- テーブル（| 区切り）は使わず、箇条書き（- ）で代替する\n"
+                    "- 水平線（--- や ***）は使わない\n"
+                    "- コードは ``` で囲む"
+                )
                 async with self.get_channel_lock(channel_id):
-                    response, timed_out = await run_claude(s["prompt"], model=sched_model, thinking=sched_thinking)
+                    response, timed_out = await run_claude(s["prompt"] + discord_format_hint, model=sched_model, thinking=sched_thinking)
 
                 if timed_out:
                     await channel.send(embed=make_error_embed("スケジュールタスクがタイムアウトしました。"))
