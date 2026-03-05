@@ -163,6 +163,15 @@ class ClaudeBot(commands.Bot):
             logger.info("Cleared guild commands for: %s", guild.name)
         logger.info("Channel names cached: %d channels", sum(len(g.channels) for g in self.guilds))
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """全スラッシュコマンドに allowed_user_ids チェックを適用する。"""
+        cfg = load_config()
+        allowed = cfg.get("allowed_user_ids", [])
+        if str(interaction.user.id) not in allowed:
+            await interaction.response.send_message("権限がありません。", ephemeral=True)
+            return False
+        return True
+
     async def on_message(self, message: discord.Message):
         logger.info(
             "[on_message] author=%s (id=%s, bot=%s) channel=%s(%s) content_len=%d",
