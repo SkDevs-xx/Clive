@@ -150,6 +150,7 @@ SLACK_APP_TOKEN=xapp-...
 | `discord.heartbeat_enabled` | Heartbeat 自律巡回の有効化 | `false` |
 | `discord.heartbeat_channel_id` | Heartbeat 通知を送るチャンネル ID | なし |
 | `discord.heartbeat_interval_minutes` | Heartbeat の実行間隔（分） | `60` |
+| `discord.heartbeat_thinking` | Heartbeat 専用の Thinking モード | `false` |
 | `discord.no_mention_channels` | メンション不要で反応するチャンネル ID（配列） | `[]` |
 | `novnc_bind_address` | noVNC のバインド先 IP（後述） | `localhost` |
 

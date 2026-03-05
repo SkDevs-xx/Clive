@@ -18,7 +18,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
 import core.config as _cfg
-from core.config import load_platform_config, save_platform_config
+from core.config import load_platform_config, save_platform_config, get_model_config
 from core.claude import run_claude
 from platforms.discord.utils import get_guild_channels
 from platforms.discord.embeds import make_error_embed, make_info_embed
@@ -53,11 +53,13 @@ SUPPRESS_HOURS = 24
 def _build_status_embed(state: dict, cfg: dict) -> discord.Embed:
     """ステータス表示用の Embed を組み立てる。"""
     enabled = cfg.get("heartbeat_enabled", True)
+    thinking = cfg.get("heartbeat_thinking", False)
     ch_id = cfg.get("heartbeat_channel_id", "")
     interval = cfg.get("heartbeat_interval_minutes", 30)
     ch_name = f"<#{ch_id}>" if ch_id else "未設定"
     desc = (
         f"**Heartbeat:** {'ON' if enabled else 'OFF（Wrapup のみ）'}\n"
+        f"**Thinking:** {'ON' if thinking else 'OFF'}\n"
         f"**通知チャンネル:** {ch_name}\n"
         f"**実行間隔:** {interval}分\n"
         f"**Wrapup時刻:** {state['wrapup_time']}\n"
@@ -174,6 +176,7 @@ class HeartbeatView(discord.ui.View):
         if cfg is None:
             cfg = load_platform_config()
         self._enabled = cfg.get("heartbeat_enabled", True)
+        self._thinking = cfg.get("heartbeat_thinking", False)
 
         # チャンネル Select（row 0）
         if channels:
@@ -189,23 +192,25 @@ class HeartbeatView(discord.ui.View):
             self.ch_select.callback = self._on_channel_select
             self.add_item(self.ch_select)
 
-        self._update_toggle_buttons(self._enabled)
+        self._update_toggle_buttons(self._enabled, self._thinking)
 
-    def _update_toggle_buttons(self, enabled: bool):
+    def _update_toggle_buttons(self, enabled: bool, thinking: bool):
         self.hb_on_btn.style = discord.ButtonStyle.success if enabled else discord.ButtonStyle.secondary
         self.hb_off_btn.style = discord.ButtonStyle.success if not enabled else discord.ButtonStyle.secondary
+        self.thinking_on_btn.style = discord.ButtonStyle.success if thinking else discord.ButtonStyle.secondary
+        self.thinking_off_btn.style = discord.ButtonStyle.success if not thinking else discord.ButtonStyle.secondary
 
     async def _on_channel_select(self, interaction: discord.Interaction):
         selected = interaction.data["values"][0]
         cfg = load_platform_config()
         cfg["heartbeat_channel_id"] = selected
         save_platform_config(cfg)
-        # Embed を更新
         text = _read_heartbeat_text()
         state = parse_heartbeat_state(text)
         cfg = load_platform_config()
         for opt in self.ch_select.options:
             opt.default = (opt.value == selected)
+        self._update_toggle_buttons(cfg.get("heartbeat_enabled", True), cfg.get("heartbeat_thinking", False))
         await interaction.response.edit_message(embed=_build_status_embed(state, cfg), view=self)
 
     @discord.ui.button(label="今すぐ実行", style=discord.ButtonStyle.primary, row=1)
@@ -226,25 +231,45 @@ class HeartbeatView(discord.ui.View):
     @discord.ui.button(label="Heartbeat ON", row=2)
     async def hb_on_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         self._enabled = True
-        self._update_toggle_buttons(True)
         cfg = load_platform_config()
         cfg["heartbeat_enabled"] = True
         save_platform_config(cfg)
+        self._update_toggle_buttons(True, self._thinking)
         text = _read_heartbeat_text()
         state = parse_heartbeat_state(text)
-        cfg = load_platform_config()
         await interaction.response.edit_message(embed=_build_status_embed(state, cfg), view=self)
 
     @discord.ui.button(label="Heartbeat OFF", row=2)
     async def hb_off_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         self._enabled = False
-        self._update_toggle_buttons(False)
         cfg = load_platform_config()
         cfg["heartbeat_enabled"] = False
         save_platform_config(cfg)
+        self._update_toggle_buttons(False, self._thinking)
         text = _read_heartbeat_text()
         state = parse_heartbeat_state(text)
+        await interaction.response.edit_message(embed=_build_status_embed(state, cfg), view=self)
+
+    @discord.ui.button(label="Thinking ON", row=3)
+    async def thinking_on_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self._thinking = True
         cfg = load_platform_config()
+        cfg["heartbeat_thinking"] = True
+        save_platform_config(cfg)
+        self._update_toggle_buttons(self._enabled, True)
+        text = _read_heartbeat_text()
+        state = parse_heartbeat_state(text)
+        await interaction.response.edit_message(embed=_build_status_embed(state, cfg), view=self)
+
+    @discord.ui.button(label="Thinking OFF", row=3)
+    async def thinking_off_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self._thinking = False
+        cfg = load_platform_config()
+        cfg["heartbeat_thinking"] = False
+        save_platform_config(cfg)
+        self._update_toggle_buttons(self._enabled, False)
+        text = _read_heartbeat_text()
+        state = parse_heartbeat_state(text)
         await interaction.response.edit_message(embed=_build_status_embed(state, cfg), view=self)
 
 
@@ -319,13 +344,17 @@ class HeartbeatCog(commands.Cog):
         )
         skill_instr = (
             f"[platform: {ctx.name}]\n"
+            + (f"\n{ctx.format_hint}\n" if ctx.format_hint else "")
             + (f"\n{registry_instr}" if registry_instr else "")
         )
 
         # タイムアウト = 実行間隔（次の heartbeat までに終わればよい）
         interval = cfg.get("heartbeat_interval_minutes", 30)
+        hb_thinking = cfg.get("heartbeat_thinking", False)
+        model, _ = get_model_config()
         response, timed_out = await run_claude(
             prompt, timeout=interval * 60, skill_instructions=skill_instr,
+            model=model, thinking=hb_thinking,
         )
 
         if timed_out or not response:
