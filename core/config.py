@@ -135,8 +135,15 @@ def get_skip_permissions() -> bool:
     return load_platform_config().get("skip_permissions", True)
 
 def get_engine_name() -> str:
-    """config.json の "engine" を返す。未設定時は "claude"。"""
-    return load_config().get("engine", "claude")
+    """config.json の "engine" を返す。キーが未設定の場合は警告を出して "claude" にフォールバックする。"""
+    cfg = load_config()
+    if "engine" not in cfg:
+        logging.getLogger("disclaude").warning(
+            'config.json に "engine" キーがありません。"claude" にフォールバックします。'
+            ' config.json に {"engine": "claude"} を追加してください。'
+        )
+        return "claude"
+    return cfg["engine"]
 
 def save_config(cfg: dict) -> None:
     global _config_cache, _config_mtime
