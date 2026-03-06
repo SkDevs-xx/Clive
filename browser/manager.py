@@ -9,7 +9,7 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PROFILE_DIR = os.path.expanduser("~/.config/disclaude-chrome")
+DEFAULT_PROFILE_DIR = os.path.expanduser("~/.config/clive-chrome")
 VNC_PASSWD_FILE = os.path.expanduser("~/.vnc/passwd")
 
 

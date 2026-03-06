@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 from core.config import BASE_DIR, LOG_DIR, init_workspace
 
-logger = logging.getLogger("disclaude")
+logger = logging.getLogger("clive")
 
 
 def _setup_logging():
@@ -29,7 +29,7 @@ def _setup_logging():
     sh.setFormatter(fmt)
 
     # 起動時エラー用（プラットフォーム未確定）
-    lg_main = logging.getLogger("disclaude")
+    lg_main = logging.getLogger("clive")
     lg_main.setLevel(logging.INFO)
     lg_main.addHandler(sh)
 

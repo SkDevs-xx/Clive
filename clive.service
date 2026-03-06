@@ -1,0 +1,22 @@
+[Unit]
+Description=clive
+After=network.target
+
+[Service]
+Type=simple
+User=clive
+WorkingDirectory=/home/clive
+ExecStart=/home/clive/venv/bin/python /home/clive/main.py
+Restart=always
+RestartSec=10
+Environment=PATH=/home/clive/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# --- サンドボックス ---
+ProtectSystem=strict
+ReadWritePaths=/home/clive
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

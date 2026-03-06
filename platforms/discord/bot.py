@@ -90,7 +90,7 @@ class ClaudeBot(commands.Bot):
             vnc_port = platform_cfg.get("browser_vnc_port", 5900)
             vnc_display = platform_cfg.get("browser_vnc_display", ":99")
             novnc_bind = load_config().get("novnc_bind_address", "localhost")
-            profile_dir = os.path.expanduser("~/.config/disclaude-chrome-discord")
+            profile_dir = os.path.expanduser("~/.config/clive-chrome-discord")
             self.browser_manager = BrowserManager(cdp_port=port, vnc_port=vnc_port, novnc_port=novnc_port, novnc_bind=novnc_bind, profile_dir=profile_dir, display=vnc_display)
             await self.browser_manager.start()
 

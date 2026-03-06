@@ -1,10 +1,10 @@
-"""disclaude Browser MCP Server — Chrome CDP 経由のブラウザ操作を Claude に提供する。"""
+"""Clive Browser MCP Server — Chrome CDP 経由のブラウザ操作を AI に提供する。"""
 
 from mcp.server.fastmcp import FastMCP
 
 from .tools import register_tools
 
-mcp = FastMCP("disclaude-browser")
+mcp = FastMCP("clive-browser")
 register_tools(mcp)
 
 

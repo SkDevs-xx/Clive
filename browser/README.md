@@ -1,4 +1,4 @@
-# disclaude Browser
+# Clive Browser
 
 Claude が永続セッション付きの Chrome を操作するための MCP サーバー。
 
@@ -23,7 +23,7 @@ Claude Code
 | プロセス | Discord デフォルト | Slack デフォルト | 備考 |
 |---|---|---|---|
 | **Xtigervnc** | ディスプレイ `:99` / VNC ポート `5900` | ディスプレイ `:100` / VNC ポート `5901` | ロックファイル `/tmp/.X{N}-lock` が存在すれば起動をスキップ |
-| **Chrome** | CDP `9222` / プロファイル `disclaude-chrome-discord` | CDP `9221` / プロファイル `disclaude-chrome-slack` | クラッシュ時は自動再起動（指数バックオフ） |
+| **Chrome** | CDP `9222` / プロファイル `clive-chrome-discord` | CDP `9221` / プロファイル `clive-chrome-slack` | クラッシュ時は自動再起動（指数バックオフ） |
 | **noVNC** | ポート `6080` | ポート `6081` | バインド先は `novnc_bind_address` で設定 |
 
 各ポートと表示番号は `config.json` で変更できる:
@@ -116,8 +116,8 @@ curl http://127.0.0.1:9221/json
 プラットフォームごとのプロファイルディレクトリが存在するか確認:
 
 ```bash
-ls ~/.config/disclaude-chrome-discord/
-ls ~/.config/disclaude-chrome-slack/
+ls ~/.config/clive-chrome-discord/
+ls ~/.config/clive-chrome-slack/
 ```
 
 ディレクトリがなければ Cookie が保存されていない。Chrome の `--user-data-dir` パスが変わっていないか確認。

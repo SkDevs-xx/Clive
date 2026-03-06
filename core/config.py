@@ -83,7 +83,7 @@ def validate_claude_bin() -> None:
 
 def _logger() -> "logging.Logger":
     name = _tl_get("PLATFORM_NAME")
-    return logging.getLogger(f"{name}_bot" if name else "disclaude")
+    return logging.getLogger(f"{name}_bot" if name else "clive")
 
 
 def _atomic_write_json(path: Path, data) -> None:
