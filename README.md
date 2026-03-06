@@ -101,10 +101,11 @@ claude
 
 ### 4. トークンの設定
 
-`.env` を編集して取得したトークンを貼り付ける:
+`.env` はセキュリティのため **root ユーザーで** 作成し、clive ユーザーがファイルを直接読めないよう権限を設定する。systemd が起動時に展開して環境変数として渡す。
 
 ```bash
-vi .env
+# root で実行
+sudo vi /home/clive/.env
 ```
 
 ```
@@ -115,6 +116,16 @@ DISCORD_BOT_TOKEN=ここにあなたのDiscordBotTokenを貼る
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
 ```
+
+保存したらパーミッションを設定する:
+
+```bash
+sudo chown root:root /home/clive/.env
+sudo chmod 600 /home/clive/.env
+```
+
+> これにより clive ユーザー（ボットプロセス）は `.env` を直接読めなくなる。
+> 開発時に手元で直接実行する場合は `.env.local` を clive ユーザーで用意する（`.gitignore` 済み）。
 
 ### 5. 設定ファイルの編集
 

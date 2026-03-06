@@ -18,6 +18,12 @@ from dotenv import load_dotenv
 
 from core.config import BASE_DIR, LOG_DIR, init_workspace
 
+# 開発用: .env.local が存在する場合のみ読み込む
+# 本番（systemd 経由）では EnvironmentFile で展開されるため不要
+_env_local = BASE_DIR / ".env.local"
+if _env_local.exists():
+    load_dotenv(_env_local)
+
 logger = logging.getLogger("clive")
 
 
@@ -75,10 +81,9 @@ def _init_workspace_cmd(platform: str, from_platform: str):
 
 def _run_discord():
     """Discord Bot を起動する。"""
-    load_dotenv(BASE_DIR / ".env")
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token or token == "your_token_here":
-        logger.error(".env に DISCORD_BOT_TOKEN が設定されていません。")
+        logger.error("DISCORD_BOT_TOKEN が設定されていません。")
         sys.exit(1)
 
     workspace_dir = BASE_DIR / "platforms" / "discord" / "workspace"
@@ -96,14 +101,13 @@ def _run_discord():
 def _run_slack():
     """Slack Bot を起動する。"""
     import asyncio
-    load_dotenv(BASE_DIR / ".env")
     bot_token = os.getenv("SLACK_BOT_TOKEN")
     app_token = os.getenv("SLACK_APP_TOKEN")
     if not bot_token:
-        logger.error(".env に SLACK_BOT_TOKEN が設定されていません。")
+        logger.error("SLACK_BOT_TOKEN が設定されていません。")
         sys.exit(1)
     if not app_token:
-        logger.error(".env に SLACK_APP_TOKEN が設定されていません。")
+        logger.error("SLACK_APP_TOKEN が設定されていません。")
         sys.exit(1)
 
     workspace_dir = BASE_DIR / "platforms" / "slack" / "workspace"

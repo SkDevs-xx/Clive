@@ -16,7 +16,10 @@ ProtectSystem=strict
 ReadWritePaths=/home/clive
 PrivateTmp=true
 NoNewPrivileges=true
-ProtectHome=false
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
