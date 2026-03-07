@@ -365,7 +365,7 @@ class HeartbeatCog(commands.Cog):
         interval = cfg.get("heartbeat_interval_minutes", 30)
         hb_thinking = cfg.get("heartbeat_thinking", False)
         model, _ = get_model_config()
-        response, timed_out = await run_engine(
+        response, timed_out, _ = await run_engine(
             prompt, timeout=interval * 60, skill_instructions=skill_instr,
             model=model, thinking=hb_thinking,
         )
@@ -510,7 +510,7 @@ class HeartbeatCog(commands.Cog):
             + combined
         )
 
-        summary, timed_out = await run_engine(prompt)
+        summary, timed_out, _ = await run_engine(prompt)
         if timed_out or not summary:
             logger.warning("Heartbeat: weekly compression timed out")
             return
@@ -553,7 +553,7 @@ class HeartbeatCog(commands.Cog):
             + combined
         )
 
-        summary, timed_out = await run_engine(prompt)
+        summary, timed_out, _ = await run_engine(prompt)
         if timed_out or not summary:
             logger.warning("Heartbeat: monthly compression timed out")
             return

@@ -162,6 +162,14 @@ def get_engine_name() -> str:
         sys.exit(1)
     return cfg["engine"]
 
+def get_available_models() -> list[str]:
+    """現在設定されているエンジンで利用可能なモデルIDのリストを返す。"""
+    engine = get_engine_name()
+    if engine == "codex":
+        return ["gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5.1-max", "gpt-5.1-mini"]
+    # デフォルト: claude
+    return ["sonnet", "opus", "haiku"]
+
 def save_config(cfg: dict) -> None:
     global _config_cache, _config_mtime
     with _config_lock:

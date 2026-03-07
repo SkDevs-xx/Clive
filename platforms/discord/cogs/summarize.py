@@ -64,7 +64,7 @@ class SummarizeCog(commands.Cog):
         )
 
         async with self.bot.get_channel_lock(channel_id):
-            result, timed_out = await run_engine(meta_prompt)
+            result, timed_out, _ = await run_engine(meta_prompt)
 
         if timed_out:
             return {"use_all": True, "keywords": [], "date_from": None, "date_to": None}
@@ -237,7 +237,7 @@ class SummarizeCog(commands.Cog):
             )
 
             async with self.bot.get_channel_lock(interaction.channel_id):
-                summary, timed_out = await run_engine(full_prompt)
+                summary, timed_out, _ = await run_engine(full_prompt)
 
             if timed_out:
                 await interaction.edit_original_response(embed=make_error_embed("タイムアウトしました。"))

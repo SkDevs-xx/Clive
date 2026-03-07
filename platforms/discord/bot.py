@@ -156,7 +156,7 @@ class ClaudeBot(commands.Bot):
                 sched_model = s.get("model", "sonnet")
                 sched_thinking = s.get("thinking", s.get("mode") == "planning")
                 async with self.get_channel_lock(channel_id):
-                    response, timed_out = await run_engine(
+                    response, timed_out, _ = await run_engine(
                         s["prompt"] + "\n\n" + DISCORD_FORMAT_HINT,
                         model=sched_model, thinking=sched_thinking,
                     )
@@ -280,9 +280,6 @@ class ClaudeBot(commands.Bot):
                 async with self.get_channel_lock(channel_id):
                     session_id = get_channel_session(channel_id)
                     is_new = session_id is None
-                    if is_new:
-                        session_id = str(uuid.uuid4())
-                        save_channel_session(channel_id, session_id)
 
                     task = asyncio.current_task()
                     self.running_tasks[channel_id] = task
@@ -296,13 +293,15 @@ class ClaudeBot(commands.Bot):
                         f"[platform: {self.platform_context.name}]\n"
                         + (f"\n{registry_instr}" if registry_instr else "")
                     )
-                    response, timed_out = await run_engine(
+                    response, timed_out, new_session_id = await run_engine(
                         full_prompt, model=model, thinking=thinking,
                         session_id=session_id,
                         is_new_session=is_new,
                         on_process=lambda p: self.running_processes.__setitem__(channel_id, p),
                         skill_instructions=skill_instr,
                     )
+                    if is_new and new_session_id:
+                        save_channel_session(channel_id, new_session_id)
 
             if timed_out:
                 await message.reply(embed=make_error_embed(

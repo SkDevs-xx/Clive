@@ -85,7 +85,7 @@ async def _get_search_criteria(
 
     lock = bot.get_channel_lock(channel_id)
     async with lock:
-        result, timed_out = await run_engine(meta_prompt)
+        result, timed_out, _ = await run_engine(meta_prompt)
 
     if timed_out:
         return {"use_all": True, "keywords": [], "date_from": None, "date_to": None}
@@ -262,7 +262,7 @@ def register(bot: "SlackBot"):
 
             lock = bot.get_channel_lock(channel_id)
             async with lock:
-                summary, timed_out = await run_engine(full_prompt, skill_instructions=skill_instr)
+                summary, timed_out, _ = await run_engine(full_prompt, skill_instructions=skill_instr)
 
             if timed_out:
                 await respond(text=":warning: タイムアウトしました。", replace_original=True)

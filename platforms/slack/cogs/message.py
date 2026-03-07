@@ -168,9 +168,6 @@ async def handle_claude_message(
         async with lock:
             session_id = get_channel_session(channel_id)
             is_new = session_id is None
-            if is_new:
-                session_id = str(uuid.uuid4())
-                save_channel_session(channel_id, session_id)
 
             task = asyncio.current_task()
             bot.running_tasks[channel_id] = task
@@ -185,7 +182,7 @@ async def handle_claude_message(
                 + (f"\n{bot.platform_context.format_hint}\n" if bot.platform_context.format_hint else "")
                 + (f"\n{registry_instr}" if registry_instr else "")
             )
-            response, timed_out = await run_engine(
+            response, timed_out, new_session_id = await run_engine(
                 full_prompt,
                 model=model,
                 thinking=thinking,
@@ -194,6 +191,9 @@ async def handle_claude_message(
                 on_process=lambda p: bot.running_processes.__setitem__(channel_id, p),
                 skill_instructions=skill_instr,
             )
+            
+            if is_new and new_session_id:
+                save_channel_session(channel_id, new_session_id)
 
             bot.running_tasks.pop(channel_id, None)
             bot.running_processes.pop(channel_id, None)

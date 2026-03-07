@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -36,8 +37,8 @@ async def run_engine(
     is_new_session: bool = False,
     on_process: "Callable[[asyncio.subprocess.Process], None] | None" = None,
     skill_instructions: str = "",
-) -> tuple[str, bool]:
-    """(response_text, timed_out) を返す。
+) -> tuple[str, bool, str | None]:
+    """(response_text, timed_out, new_session_id) を返す。
 
     config.json の "engine" に応じて実装を切り替える。
     on_process: プロセス起動直後に呼ばれるコールバック。キャンセル用途。
@@ -46,7 +47,7 @@ async def run_engine(
     engine = _cfg.get_engine_name()
     if engine == "codex":
         return await _run_codex_cli(
-            prompt, model, timeout, on_process, skill_instructions
+            prompt, model, thinking, timeout, session_id, is_new_session, on_process, skill_instructions
         )
     return await _run_claude_cli(
         prompt, model, thinking, timeout,
@@ -63,7 +64,7 @@ async def _run_claude_cli(
     is_new_session: bool,
     on_process: "Callable[[asyncio.subprocess.Process], None] | None",
     skill_instructions: str,
-) -> tuple[str, bool]:
+) -> tuple[str, bool, str | None]:
     """Claude Code CLI を subprocess で実行する。"""
     from core.config import CLAUDE_BIN
 
@@ -77,6 +78,12 @@ async def _run_claude_cli(
         cmd.append("--dangerously-skip-permissions")
     cmd += ["--model", model]
     cmd += ["--settings", json.dumps({"alwaysThinkingEnabled": thinking})]
+    
+    new_session_id = None
+    if is_new_session and not session_id:
+        session_id = str(uuid.uuid4())
+        new_session_id = session_id
+        
     if session_id:
         if is_new_session:
             cmd += ["--session-id", session_id]
@@ -115,9 +122,9 @@ async def _run_claude_cli(
             _logger().error("claude error (rc=%d): %s", proc.returncode, err)
             err_lower = err.lower()
             if any(kw in err_lower for kw in ("usage limit", "rate limit", "quota", "plan limit", "exceeded")):
-                return "現在、プランの使用制限に達しているため利用できません。しばらく時間をおいてから再度お試しください。", False
-            return f"エラーが発生しました（終了コード {proc.returncode}）:\n```\n{err[:800]}\n```", False
-        return stdout.decode("utf-8", errors="replace").strip(), False
+                return "現在、プランの使用制限に達しているため利用できません。しばらく時間をおいてから再度お試しください。", False, None
+            return f"エラーが発生しました（終了コード {proc.returncode}）:\n```\n{err[:800]}\n```", False, None
+        return stdout.decode("utf-8", errors="replace").strip(), False, new_session_id
     except asyncio.TimeoutError:
         if proc is not None:
             import signal
@@ -126,7 +133,7 @@ async def _run_claude_cli(
                 await proc.wait()
             except (ProcessLookupError, OSError):
                 pass
-        return "", True
+        return "", True, None
     except asyncio.CancelledError:
         if proc is not None:
             import signal
@@ -145,22 +152,31 @@ async def _run_claude_cli(
                 await proc.wait()
             except (ProcessLookupError, OSError):
                 pass
-        return f"エラーが発生しました: {e}", False
+        return f"エラーが発生しました: {e}", False, None
 
 
 async def _run_codex_cli(
     prompt: str,
     model: str,
+    thinking: bool,
     timeout: int | None,
+    session_id: str | None,
+    is_new_session: bool,
     on_process: "Callable[[asyncio.subprocess.Process], None] | None",
     skill_instructions: str,
-) -> tuple[str, bool]:
+) -> tuple[str, bool, str | None]:
     """OpenAI Codex CLI を subprocess で実行する。"""
     from core.config import CODEX_BIN
     if timeout is None:
         timeout = TIMEOUT_FAST
 
     cmd = [CODEX_BIN, "exec"]
+    if not is_new_session and session_id:
+        cmd += ["resume", session_id]
+
+    if thinking:
+        cmd += ["-c", "reasoning_effort=high"]
+
     if get_skip_permissions():
         cmd.append("--dangerously-bypass-approvals-and-sandbox")
     cmd += ["--model", model]
@@ -202,14 +218,22 @@ async def _run_codex_cli(
             _logger().error("codex error (rc=%d): %s", proc.returncode, err)
             err_lower = err.lower()
             if "401 unauthorized" in err_lower or "missing bearer" in err_lower:
-                return "OpenAIの認証エラーです。環境変数 OPENAI_API_KEY が設定されているか確認してください。", False
+                return "OpenAIの認証エラーです。環境変数 OPENAI_API_KEY が設定されているか確認してください。", False, None
             if any(kw in err_lower for kw in ("usage limit", "rate limit", "quota", "plan limit", "exceeded")):
-                return "現在、プランの使用制限に達しているため利用できません。しばらく時間をおいてから再度お試しください。", False
-            return f"エラーが発生しました（終了コード {proc.returncode}）:\n```\n{err[:800]}\n```", False
+                return "現在、プランの使用制限に達しているため利用できません。しばらく時間をおいてから再度お試しください。", False, None
+            return f"エラーが発生しました（終了コード {proc.returncode}）:\n```\n{err[:800]}\n```", False, None
 
         # Codex CLI の標準出力を直接返す
         out_text = stdout.decode("utf-8", errors="replace").strip()
-        return out_text, False
+        
+        new_session_id = None
+        if is_new_session:
+            # session id: 019cc87d-xxxx... のような行を探す
+            m = re.search(r"session id:\s*([a-zA-Z0-9\-]+)", out_text, re.IGNORECASE)
+            if m:
+                new_session_id = m.group(1)
+
+        return out_text, False, new_session_id
 
     except asyncio.TimeoutError:
         if proc is not None:
@@ -219,7 +243,7 @@ async def _run_codex_cli(
                 await proc.wait()
             except (ProcessLookupError, OSError):
                 pass
-        return "", True
+        return "", True, None
     except asyncio.CancelledError:
         if proc is not None:
             import signal
@@ -238,7 +262,7 @@ async def _run_codex_cli(
                 await proc.wait()
             except (ProcessLookupError, OSError):
                 pass
-        return f"エラーが発生しました: {e}", False
+        return f"エラーが発生しました: {e}", False, None
 
 
 def validate_engine_bin() -> None:
