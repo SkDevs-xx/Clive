@@ -135,10 +135,14 @@ class BrowserManager:
             if self._chrome_proc and self._chrome_proc.returncode is not None:
                 logger.warning("Chrome crashed (code=%s), restarting in %ds...",
                               self._chrome_proc.returncode, backoff)
-                if await self._start_chrome():
-                    backoff = 5  # 成功したらリセット
-                else:
-                    backoff = min(backoff * 2, 300)  # 失敗したら倍に（最大5分）
+                try:
+                    if await self._start_chrome():
+                        backoff = 5  # 成功したらリセット
+                    else:
+                        backoff = min(backoff * 2, 300)  # 失敗したら倍に（最大5分）
+                except Exception as e:
+                    logger.error("Error during Chrome restart: %s", e)
+                    backoff = min(backoff * 2, 300)
 
     async def _start_novnc(self) -> None:
         """noVNC プロキシを起動する。"""
@@ -189,6 +193,10 @@ class BrowserManager:
         self._novnc_proc = None
         self._chrome_proc = None
         self._xvnc_proc = None
+
+        if self._http_session is not None and not self._http_session.closed:
+            await self._http_session.close()
+            self._http_session = None
 
     async def _cdp_is_alive(self) -> bool:
         """CDP ポートが応答するか確認する。"""

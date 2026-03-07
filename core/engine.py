@@ -124,7 +124,7 @@ async def _run_claude_cli(
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 await proc.wait()
-            except ProcessLookupError:
+            except (ProcessLookupError, OSError):
                 pass
         return "", True
     except asyncio.CancelledError:
@@ -133,7 +133,7 @@ async def _run_claude_cli(
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
                 await proc.wait()
-            except ProcessLookupError:
+            except (ProcessLookupError, OSError):
                 pass
         raise  # タスクキャンセルは上位に伝搬させる
     except Exception as e:
