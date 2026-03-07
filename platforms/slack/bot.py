@@ -159,7 +159,7 @@ class SlackBot:
                     if item.get("id") == s.get("id") and item.get("id"):
                         item["run_count"] = item.get("run_count", 0) + 1
                         item["last_run"] = datetime.now(timezone.utc).isoformat()
-            save_schedules(schedules)
+                save_schedules(schedules)
 
     async def start(self):
         """Bot を起動する。"""
@@ -191,4 +191,6 @@ class SlackBot:
         """Bot を停止する。"""
         if self.browser_manager:
             await self.browser_manager.stop()
+        from core.attachments import close_http_session
+        await close_http_session()
         self.scheduler.shutdown(wait=False)

@@ -476,10 +476,12 @@ class HeartbeatCog(commands.Cog):
         if not old_files:
             return
 
+        import asyncio as _aio
         old_files.sort(key=lambda f: f.stem)
         contents = []
         for f in old_files:
-            contents.append(f"## {f.stem}\n{f.read_text(encoding='utf-8')}")
+            text = await _aio.to_thread(f.read_text, encoding="utf-8")
+            contents.append(f"## {f.stem}\n{text}")
 
         combined = "\n\n---\n\n".join(contents)
         iso_cal = today.isocalendar()
@@ -496,7 +498,7 @@ class HeartbeatCog(commands.Cog):
             logger.warning("Heartbeat: weekly compression timed out")
             return
 
-        week_file.write_text(f"# 週次サマリー ({iso_cal.year}-W{iso_cal.week:02d})\n\n{summary}\n", encoding="utf-8")
+        await _aio.to_thread(week_file.write_text, f"# 週次サマリー ({iso_cal.year}-W{iso_cal.week:02d})\n\n{summary}\n", encoding="utf-8")
 
         for f in old_files:
             f.unlink()
@@ -518,10 +520,12 @@ class HeartbeatCog(commands.Cog):
         if not old_files:
             return
 
+        import asyncio as _aio
         old_files.sort(key=lambda f: f.stem)
         contents = []
         for f in old_files:
-            contents.append(f"## {f.stem}\n{f.read_text(encoding='utf-8')}")
+            text = await _aio.to_thread(f.read_text, encoding="utf-8")
+            contents.append(f"## {f.stem}\n{text}")
 
         combined = "\n\n---\n\n".join(contents)
         month_file = guild_dir / f"{today.year}-{today.month:02d}.md"
@@ -537,7 +541,7 @@ class HeartbeatCog(commands.Cog):
             logger.warning("Heartbeat: monthly compression timed out")
             return
 
-        month_file.write_text(f"# 月次サマリー ({today.year}-{today.month:02d})\n\n{summary}\n", encoding="utf-8")
+        await _aio.to_thread(month_file.write_text, f"# 月次サマリー ({today.year}-{today.month:02d})\n\n{summary}\n", encoding="utf-8")
 
         for f in old_files:
             f.unlink()

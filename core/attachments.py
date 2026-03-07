@@ -33,6 +33,14 @@ def _get_http_session() -> aiohttp.ClientSession:
     return _http_session
 
 
+async def close_http_session() -> None:
+    """グローバル HTTP セッションを閉じる。Bot 停止時に呼ぶ。"""
+    global _http_session
+    if _http_session is not None and not _http_session.closed:
+        await _http_session.close()
+        _http_session = None
+
+
 TEXT_EXTENSIONS = {".txt", ".csv", ".md", ".py", ".js", ".ts", ".json", ".yaml", ".yml",
                    ".toml", ".ini", ".cfg", ".sh", ".html", ".css", ".xml", ".log"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
@@ -87,7 +95,8 @@ async def process_attachment(attachment) -> tuple[str | None, Path | None]:
             return text, tmp_path
 
         elif ext == PDF_EXTENSION and PDF_AVAILABLE:
-            text = pdf_extract_text(str(save_path))
+            import asyncio
+            text = await asyncio.to_thread(pdf_extract_text, str(save_path))
             save_path.unlink(missing_ok=True)
             return f"\n\n--- PDF: {attachment.filename} ---\n{text[:4000]}\n---\n", None
 

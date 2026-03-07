@@ -84,7 +84,8 @@ async def handle_claude_message(
                 continue
 
             import core.config as _cfg
-            tmp_path = _cfg.TMP_DIR / filename
+            safe_name = f"{uuid.uuid4().hex[:8]}_{filename}"
+            tmp_path = _cfg.TMP_DIR / safe_name
             tmp_path.write_bytes(data)
 
             # process_attachment に渡せる形式のラッパーを作成

@@ -175,11 +175,13 @@ class ClaudeBot(commands.Bot):
                     if item["id"] == s["id"]:
                         item["run_count"] = item.get("run_count", 0) + 1
                         item["last_run"] = datetime.now(timezone.utc).isoformat()
-            save_schedules(schedules)
+                save_schedules(schedules)
 
     async def close(self):
         if self.browser_manager:
             await self.browser_manager.stop()
+        from core.attachments import close_http_session
+        await close_http_session()
         await super().close()
 
     async def on_ready(self):
