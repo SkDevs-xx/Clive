@@ -31,14 +31,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger("slack_bot")
 
 
-async def _download_slack_file(url: str, token: str) -> bytes | None:
+async def _download_slack_file(url: str, token: str, session=None) -> bytes | None:
     """Slack のプライベートファイルをダウンロードする（Bearer 認証付き）。"""
     import aiohttp
     try:
-        async with aiohttp.ClientSession() as session:
+        if session is not None:
             async with session.get(url, headers={"Authorization": f"Bearer {token}"}) as resp:
                 if resp.status == 200:
                     return await resp.read()
+        else:
+            async with aiohttp.ClientSession() as s:
+                async with s.get(url, headers={"Authorization": f"Bearer {token}"}) as resp:
+                    if resp.status == 200:
+                        return await resp.read()
     except Exception as e:
         logger.warning("Slack file download error: %s", e)
     return None
@@ -68,44 +73,46 @@ async def handle_claude_message(
     injected_text = ""
     image_paths: list[Path] = []
     if files:
+        import aiohttp
         bot_token = bot._bot_token
-        for f in files:
-            filename = f.get("name", "file")
-            url = f.get("url_private", "")
-            content_type = f.get("mimetype", "application/octet-stream")
-            size = f.get("size", 0)
+        async with aiohttp.ClientSession() as dl_session:
+            for f in files:
+                filename = f.get("name", "file")
+                url = f.get("url_private", "")
+                content_type = f.get("mimetype", "application/octet-stream")
+                size = f.get("size", 0)
 
-            if not url:
-                continue
+                if not url:
+                    continue
 
-            # ファイルをダウンロードして一時保存
-            data = await _download_slack_file(url, bot_token)
-            if data is None:
-                continue
+                # ファイルをダウンロードして一時保存
+                data = await _download_slack_file(url, bot_token, session=dl_session)
+                if data is None:
+                    continue
 
-            import core.config as _cfg
-            safe_name = f"{uuid.uuid4().hex[:8]}_{filename}"
-            tmp_path = _cfg.TMP_DIR / safe_name
-            tmp_path.write_bytes(data)
+                import core.config as _cfg
+                safe_name = f"{uuid.uuid4().hex[:8]}_{filename}"
+                tmp_path = _cfg.TMP_DIR / safe_name
+                tmp_path.write_bytes(data)
 
-            # process_attachment に渡せる形式のラッパーを作成
-            class _FileObj:
-                pass
+                # process_attachment に渡せる形式のラッパーを作成
+                class _FileObj:
+                    pass
 
-            file_obj = _FileObj()
-            file_obj.filename = filename
-            file_obj.url = url
-            file_obj.content_type = content_type
-            file_obj.size = size
-            # process_attachment はダウンロード済みファイルを期待しているため
-            # tmp_path を直接参照するアダプタを使う
-            file_obj._local_path = tmp_path
+                file_obj = _FileObj()
+                file_obj.filename = filename
+                file_obj.url = url
+                file_obj.content_type = content_type
+                file_obj.size = size
+                # process_attachment はダウンロード済みファイルを期待しているため
+                # tmp_path を直接参照するアダプタを使う
+                file_obj._local_path = tmp_path
 
-            text_part, image_path = await _process_local_file(file_obj)
-            if text_part:
-                injected_text += text_part
-            if image_path is not None:
-                image_paths.append(image_path)
+                text_part, image_path = await _process_local_file(file_obj)
+                if text_part:
+                    injected_text += text_part
+                if image_path is not None:
+                    image_paths.append(image_path)
 
     user_text = re.sub(r"<@[A-Z0-9]+>", "", text or "").strip()
 
@@ -177,6 +184,8 @@ async def handle_claude_message(
                 await say(text=chunk, channel=channel_id, thread_ts=reply_ts)
 
     finally:
+        bot.running_tasks.pop(channel_id, None)
+        bot.running_processes.pop(channel_id, None)
         # リアクション削除
         try:
             if msg_ts:

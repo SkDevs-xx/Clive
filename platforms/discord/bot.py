@@ -298,9 +298,6 @@ class ClaudeBot(commands.Bot):
                         skill_instructions=skill_instr,
                     )
 
-                    self.running_tasks.pop(channel_id, None)
-                    self.running_processes.pop(channel_id, None)
-
             if timed_out:
                 await message.reply(embed=make_error_embed(
                     "タイムアウトしました。`/cancel` で再試行するか、少し待ってから再送してください。"

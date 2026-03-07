@@ -24,6 +24,7 @@ from core.message import split_message
 from core.memory import (
     parse_heartbeat_state,
     update_heartbeat_state,
+    update_heartbeat_states,
     get_checklist_section,
     update_checklist_section,
     should_run_wrapup,
@@ -222,8 +223,10 @@ async def _trigger_wrapup(bot: "SlackBot", notify_channel_id: str | None, wrapup
         if summary and notify_channel_id:
             for chunk in split_message(summary, max_len=3000):
                 await client.chat_postMessage(channel=notify_channel_id, text=chunk)
-        await update_heartbeat_state(_heartbeat_file(), "wrapup_done", "true")
-        await update_heartbeat_state(_heartbeat_file(), "last_updated", datetime.now(JST).strftime("%Y-%m-%d"))
+        await update_heartbeat_states(_heartbeat_file(), {
+            "wrapup_done": "true",
+            "last_updated": datetime.now(JST).strftime("%Y-%m-%d"),
+        })
         logger.info("Heartbeat: wrapup completed")
     except Exception as e:
         logger.exception("Heartbeat: wrapup error: %s", e)
@@ -591,6 +594,8 @@ def register(bot: "SlackBot"):
 
 
 async def _reset_wrapup_done():
-    await update_heartbeat_state(_heartbeat_file(), "wrapup_done", "false")
-    await update_heartbeat_state(_heartbeat_file(), "last_updated", datetime.now(JST).strftime("%Y-%m-%d"))
+    await update_heartbeat_states(_heartbeat_file(), {
+        "wrapup_done": "false",
+        "last_updated": datetime.now(JST).strftime("%Y-%m-%d"),
+    })
     logger.info("Heartbeat: midnight reset, wrapup_done=false")

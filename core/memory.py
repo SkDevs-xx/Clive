@@ -44,13 +44,19 @@ def parse_heartbeat_state(text: str) -> dict:
 
 async def update_heartbeat_state(heartbeat_path: Path, key: str, value: str) -> None:
     """HEARTBEAT.md 内の指定キーの値を書き換える。"""
+    await update_heartbeat_states(heartbeat_path, {key: value})
+
+
+async def update_heartbeat_states(heartbeat_path: Path, updates: dict[str, str]) -> None:
+    """HEARTBEAT.md 内の複数キーの値を一括で書き換える（アトミック）。"""
     import asyncio
-    if not heartbeat_path.exists():
+    if not heartbeat_path.exists() or not updates:
         return
     text = await asyncio.to_thread(heartbeat_path.read_text, encoding="utf-8")
-    pattern = rf"({re.escape(key)}:\s*).*"
-    new_text = re.sub(pattern, rf"\g<1>{value}", text)
-    await asyncio.to_thread(heartbeat_path.write_text, new_text, encoding="utf-8")
+    for key, value in updates.items():
+        pattern = rf"({re.escape(key)}:\s*).*"
+        text = re.sub(pattern, rf"\g<1>{value}", text)
+    await asyncio.to_thread(heartbeat_path.write_text, text, encoding="utf-8")
 
 
 def get_checklist_section(text: str) -> str:

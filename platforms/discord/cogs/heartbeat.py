@@ -26,6 +26,7 @@ from core.message import split_message
 from core.memory import (
     parse_heartbeat_state,
     update_heartbeat_state,
+    update_heartbeat_states,
     get_checklist_section,
     update_checklist_section,
     should_run_wrapup,
@@ -415,8 +416,10 @@ class HeartbeatCog(commands.Cog):
                 logger.exception("Heartbeat: wrapup error for guild %s: %s", guild.name, e)
 
         if any_success:
-            await update_heartbeat_state(_heartbeat_file(),"wrapup_done", "true")
-            await update_heartbeat_state(_heartbeat_file(),"last_updated", datetime.now(JST).strftime("%Y-%m-%d"))
+            await update_heartbeat_states(_heartbeat_file(), {
+                "wrapup_done": "true",
+                "last_updated": datetime.now(JST).strftime("%Y-%m-%d"),
+            })
             logger.info("Heartbeat: wrapup completed, wrapup_done=true")
         else:
             logger.warning("Heartbeat: wrapup failed for all guilds, wrapup_done remains false")
@@ -430,8 +433,10 @@ class HeartbeatCog(commands.Cog):
 
     async def _reset_wrapup_done(self):
         """毎日0:00に wrapup_done を false にリセットする。"""
-        await update_heartbeat_state(_heartbeat_file(),"wrapup_done", "false")
-        await update_heartbeat_state(_heartbeat_file(),"last_updated", datetime.now(JST).strftime("%Y-%m-%d"))
+        await update_heartbeat_states(_heartbeat_file(), {
+            "wrapup_done": "false",
+            "last_updated": datetime.now(JST).strftime("%Y-%m-%d"),
+        })
         logger.info("Heartbeat: midnight reset, wrapup_done=false")
 
     # ── 圧縮ロジック ────────────────────────────
