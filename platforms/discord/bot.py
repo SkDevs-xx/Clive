@@ -116,6 +116,7 @@ class ClaudeBot(commands.Bot):
                     id=f"sched_{s['id']}",
                     args=[s],
                     replace_existing=True,
+                    misfire_grace_time=60,
                 )
             except Exception as e:
                 logger.error("Schedule load error (%s): %s", s.get("id"), e)

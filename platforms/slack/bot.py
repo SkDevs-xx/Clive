@@ -100,6 +100,7 @@ class SlackBot:
                     id=f"sched_{s['id']}",
                     replace_existing=True,
                     args=[s],
+                    misfire_grace_time=60,
                 )
             except Exception as e:
                 logger.error("Schedule load error (%s): %s", s.get("id"), e)
