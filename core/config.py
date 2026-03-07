@@ -189,9 +189,16 @@ def load_schedules() -> list:
         with open(f, encoding="utf-8") as fp:
             data = json.load(fp)
             return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, ValueError):
-        _logger().error("schedules.json is corrupted.")
-        return None
+    except (json.JSONDecodeError, ValueError) as e:
+        _logger().error("schedules.json is corrupted: %s", e)
+        # 破損時は空で上書きされないようバックアップを作成する
+        bak_path = f.with_suffix(".json.bak")
+        try:
+            shutil.copy2(f, bak_path)
+            _logger().info("Backed up corrupted schedules.json to %s", bak_path)
+        except OSError as e_cp:
+            _logger().error("Failed to backup corrupted schedules.json: %s", e_cp)
+        return []
 
 def save_schedules(schedules: list) -> None:
     _atomic_write_json(_tl_get("SCHEDULES_FILE"), schedules)

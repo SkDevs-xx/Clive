@@ -31,22 +31,49 @@ if TYPE_CHECKING:
 logger = logging.getLogger("slack_bot")
 
 
-async def _download_slack_file(url: str, token: str, session=None) -> bytes | None:
-    """Slack のプライベートファイルをダウンロードする（Bearer 認証付き）。"""
+import aiofiles
+from core.attachments import MAX_ATTACHMENT_SIZE
+
+async def _download_slack_file_to_path(url: str, token: str, save_path: Path, session=None) -> bool:
+    """Slack のプライベートファイルをダウンロードして一時ファイルに保存する（Bearer 認証付き）。
+
+    OOM 防御のため iter_chunked で書き出し、最大 10MB までとする。
+    Returns:
+        bool: 成功時に True
+    """
     import aiohttp
+    
+    async def _fetch_and_save(s):
+        async with s.get(url, headers={"Authorization": f"Bearer {token}"}) as resp:
+            if resp.status != 200:
+                logger.warning("Slack file download failed, status: %d", resp.status)
+                return False
+                
+            # Content-Length check early
+            cl = resp.headers.get("Content-Length")
+            if cl and int(cl) > MAX_ATTACHMENT_SIZE:
+                logger.warning("Slack file too large: %s bytes", cl)
+                return False
+                
+            downloaded = 0
+            async with aiofiles.open(save_path, "wb") as f:
+                async for chunk in resp.content.iter_chunked(1024 * 1024):
+                    downloaded += len(chunk)
+                    if downloaded > MAX_ATTACHMENT_SIZE:
+                        logger.warning("Slack file exceeded max size during download")
+                        return False
+                    await f.write(chunk)
+            return True
+
     try:
         if session is not None:
-            async with session.get(url, headers={"Authorization": f"Bearer {token}"}) as resp:
-                if resp.status == 200:
-                    return await resp.read()
+            return await _fetch_and_save(session)
         else:
             async with aiohttp.ClientSession() as s:
-                async with s.get(url, headers={"Authorization": f"Bearer {token}"}) as resp:
-                    if resp.status == 200:
-                        return await resp.read()
+                return await _fetch_and_save(s)
     except Exception as e:
         logger.warning("Slack file download error: %s", e)
-    return None
+    return False
 
 
 async def handle_claude_message(
@@ -85,15 +112,17 @@ async def handle_claude_message(
                 if not url:
                     continue
 
-                # ファイルをダウンロードして一時保存
-                data = await _download_slack_file(url, bot_token, session=dl_session)
-                if data is None:
-                    continue
-
                 import core.config as _cfg
                 safe_name = f"{uuid.uuid4().hex[:8]}_{filename}"
                 tmp_path = _cfg.TMP_DIR / safe_name
-                tmp_path.write_bytes(data)
+                _cfg.TMP_DIR.mkdir(parents=True, exist_ok=True)
+                
+                # ファイルをダウンロードして一時保存 (OOM回避のためストリーミング)
+                success = await _download_slack_file_to_path(url, bot_token, tmp_path, session=dl_session)
+                if not success:
+                    tmp_path.unlink(missing_ok=True)
+                    injected_text += f"\n\n（添付ファイル: {filename} — サイズ超過またはダウンロード失敗）\n"
+                    continue
 
                 # process_attachment に渡せる形式のラッパーを作成
                 class _FileObj:
@@ -119,7 +148,12 @@ async def handle_claude_message(
     if not user_text and not injected_text:
         return
 
-    full_prompt = user_text + injected_text
+    full_prompt = ""
+    if user_text:
+        full_prompt += f"<user_input>\n{user_text}\n</user_input>\n"
+    if injected_text:
+        full_prompt += f"<attachments>\n{injected_text}\n</attachments>\n"
+    full_prompt = full_prompt.strip()
 
     # 返信先スレッドを決める
     reply_in_thread = platform_cfg.get("reply_in_thread", True)
