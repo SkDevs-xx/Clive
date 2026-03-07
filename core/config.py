@@ -69,6 +69,7 @@ def __getattr__(name: str):
 
 
 CLAUDE_BIN = shutil.which("claude") or str(Path.home() / ".local" / "bin" / "claude")
+CODEX_BIN = shutil.which("codex") or str(Path.home() / ".local" / "bin" / "codex")
 TIMEOUT_FAST = 180
 TIMEOUT_PLANNING = 300
 
@@ -79,6 +80,14 @@ def validate_claude_bin() -> None:
         import sys
         print(f"[ERROR] Claude CLI が見つかりません: {CLAUDE_BIN}", file=sys.stderr)
         print("  インストール方法: https://docs.anthropic.com/ja/docs/claude-code/overview", file=sys.stderr)
+        sys.exit(1)
+
+def validate_codex_bin() -> None:
+    """CODEX_BIN が実行可能かを確認する。存在しない場合は SystemExit で即終了する。"""
+    if not Path(CODEX_BIN).is_file():
+        import sys
+        print(f"[ERROR] Codex CLI が見つかりません: {CODEX_BIN}", file=sys.stderr)
+        print("  インストール方法: npm i -g @openai/codex", file=sys.stderr)
         sys.exit(1)
 
 def _logger() -> "logging.Logger":

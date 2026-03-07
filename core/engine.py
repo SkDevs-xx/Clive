@@ -155,16 +155,97 @@ async def _run_codex_cli(
     on_process: "Callable[[asyncio.subprocess.Process], None] | None",
     skill_instructions: str,
 ) -> tuple[str, bool]:
-    """OpenAI Codex CLI を subprocess で実行する（将来実装）。"""
-    raise NotImplementedError("Codex CLI engine は未実装です")
+    """OpenAI Codex CLI を subprocess で実行する。"""
+    from core.config import CODEX_BIN
+    if timeout is None:
+        timeout = TIMEOUT_FAST
+
+    cmd = [CODEX_BIN, "exec"]
+    if get_skip_permissions():
+        cmd.append("--dangerously-bypass-approvals-and-sandbox")
+    cmd += ["--model", model]
+
+    # [PROMPT] を引数として末尾に追加
+    full_prompt = f"{skill_instructions}\n\n{prompt}" if skill_instructions else prompt
+    cmd.append(full_prompt)
+
+    _logger().info(
+        "engine=codex model=%s prompt_len=%d timeout=%ds",
+        model, len(full_prompt), timeout,
+    )
+
+    env = dict(os.environ)
+    platform_name = _cfg._tl_get("PLATFORM_NAME")
+    if platform_name:
+        env["CLIVE_PLATFORM"] = platform_name
+
+    proc: asyncio.subprocess.Process | None = None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(BASE_DIR),
+            env=env,
+            preexec_fn=os.setsid,
+        )
+        if on_process is not None:
+            on_process(proc)
+
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout
+        )
+
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="replace").strip()
+            _logger().error("codex error (rc=%d): %s", proc.returncode, err)
+            err_lower = err.lower()
+            if "401 unauthorized" in err_lower or "missing bearer" in err_lower:
+                return "OpenAIの認証エラーです。環境変数 OPENAI_API_KEY が設定されているか確認してください。", False
+            if any(kw in err_lower for kw in ("usage limit", "rate limit", "quota", "plan limit", "exceeded")):
+                return "現在、プランの使用制限に達しているため利用できません。しばらく時間をおいてから再度お試しください。", False
+            return f"エラーが発生しました（終了コード {proc.returncode}）:\n```\n{err[:800]}\n```", False
+
+        # Codex CLI の標準出力を直接返す
+        out_text = stdout.decode("utf-8", errors="replace").strip()
+        return out_text, False
+
+    except asyncio.TimeoutError:
+        if proc is not None:
+            import signal
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                await proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
+        return "", True
+    except asyncio.CancelledError:
+        if proc is not None:
+            import signal
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                await proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
+        raise  # タスクキャンセルは上位に伝搬させる
+    except Exception as e:
+        _logger().exception("Unexpected engine error: %s", e)
+        if proc is not None:
+            import signal
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                await proc.wait()
+            except (ProcessLookupError, OSError):
+                pass
+        return f"エラーが発生しました: {e}", False
 
 
 def validate_engine_bin() -> None:
     """設定されたエンジンのバイナリが存在するか確認する。なければ即終了する。"""
-    import sys
     engine = _cfg.get_engine_name()
     if engine == "codex":
-        # 将来: CODEX_BIN の存在確認をここに追加
-        raise NotImplementedError("Codex CLI engine は未実装です")
-    # デフォルト: Claude CLI
-    _cfg.validate_claude_bin()
+        _cfg.validate_codex_bin()
+    else:
+        # デフォルト: Claude CLI
+        _cfg.validate_claude_bin()
