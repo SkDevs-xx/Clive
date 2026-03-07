@@ -278,7 +278,9 @@ class UtilityCog(commands.Cog):
 
     @app_commands.command(name="skills-list", description="利用可能なスキル一覧を表示し、選択で発動する")
     async def skills_list_command(self, interaction: discord.Interaction):
-        self.bot.skill_registry.reload(BASE_DIR / "skills")
+        import asyncio
+        from core.config import BASE_DIR
+        await asyncio.to_thread(self.bot.skill_registry.reload, BASE_DIR / "skills")
         skills = [s for s in self.bot.skill_registry.all_skills() if s.user_invocable]
 
         errors = self.bot.skill_registry.load_errors

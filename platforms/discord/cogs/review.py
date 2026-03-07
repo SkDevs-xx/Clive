@@ -41,7 +41,8 @@ class ReviewCog(commands.Cog):
             )
             return
 
-        text = _review_file().read_text(encoding="utf-8")
+        import asyncio
+        text = await asyncio.to_thread(_review_file().read_text, encoding="utf-8")
         items = parse_pending_reviews(text)
 
         if not items:

@@ -276,7 +276,8 @@ def register(bot: "SlackBot"):
     @app.command("/skills-list")
     async def cmd_skills_list(ack, command, client):
         await ack()
-        bot.skill_registry.reload(BASE_DIR / "skills")
+        import asyncio
+        await asyncio.to_thread(bot.skill_registry.reload, BASE_DIR / "skills")
         skills = [s for s in bot.skill_registry.all_skills() if s.user_invocable]
         channel_id = command["channel_id"]
         user_id = command["user_id"]

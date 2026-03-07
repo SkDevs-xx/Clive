@@ -74,7 +74,8 @@ async def process_attachment(attachment) -> tuple[str | None, Path | None]:
 
     try:
         if ext in TEXT_EXTENSIONS:
-            content = save_path.read_text(encoding="utf-8", errors="replace")
+            import asyncio
+            content = await asyncio.to_thread(save_path.read_text, encoding="utf-8", errors="replace")
             save_path.unlink(missing_ok=True)
             return f"\n\n--- 添付ファイル: {attachment.filename} ---\n{content[:4000]}\n---\n", None
 
