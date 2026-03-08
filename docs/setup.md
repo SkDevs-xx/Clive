@@ -143,7 +143,9 @@ Slack Bot トークンの取得手順は [platforms/slack/README.md](../platform
 
 全設定項目の説明: [config.md](config.md)
 
-### .mcp.json
+### MCP 設定
+
+#### Claude Code CLI（`.mcp.json`）
 
 `/home/clive` の部分を **自分の環境の絶対パス** に置き換える（home に配置していればスキップ）:
 
@@ -160,6 +162,20 @@ Slack Bot トークンの取得手順は [platforms/slack/README.md](../platform
 ```
 
 > 相対パスは使えません。必ず絶対パスを指定してください。
+
+#### Codex CLI（`~/.codex/config.toml`）
+
+Codex CLI はプロジェクト直下の `.mcp.json` を自動では読まないため、**home 配下の `~/.codex/config.toml` に MCP サーバーを登録**する:
+
+```toml
+[mcp_servers.clive-browser]
+command = "/home/Clive/venv/bin/python"
+args = ["-m", "browser"]
+cwd = "/home/Clive"
+```
+
+> `command` と `cwd` は相対パス不可。必ず絶対パスを指定すること。
+> `codex mcp list` で `clive-browser` が表示されれば認識されている。
 
 ## 6. 動作確認
 
