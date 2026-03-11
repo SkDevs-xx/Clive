@@ -20,3 +20,6 @@ class Skill:
     )
     user_invocable: bool = False                   # ユーザーが直接呼べるか
     slow: bool = False                             # 処理に時間がかかるか（事前通知用）
+    slow_keywords: frozenset[str] = field(         # slow通知のトリガーキーワード
+        default_factory=frozenset,
+    )

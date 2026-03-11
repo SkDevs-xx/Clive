@@ -278,7 +278,12 @@ class CliveBot(commands.Bot):
                 pass
             # slow スキルへのリクエストなら事前通知
             for skill in self.skill_registry.all_skills():
-                if skill.slow and user_content.lstrip().startswith(f"/{skill.name}"):
+                if not skill.slow:
+                    continue
+                matched = user_content.lstrip().startswith(f"/{skill.name}") or (
+                    skill.slow_keywords and any(kw in user_content for kw in skill.slow_keywords)
+                )
+                if matched:
                     try:
                         await message.channel.send("⏳ この処理は数分かかる場合があります。しばらくお待ちください...")
                     except Exception:

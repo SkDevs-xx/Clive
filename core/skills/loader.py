@@ -82,5 +82,6 @@ def load_skill(skill_md_path: Path) -> tuple[Skill | None, str | None]:
         platforms=platforms,
         user_invocable=bool(meta.get("user-invocable", False)),
         slow=bool(meta.get("slow", False)),
+        slow_keywords=frozenset(str(k) for k in meta.get("slow-keywords", [])),
     )
     return skill, None
